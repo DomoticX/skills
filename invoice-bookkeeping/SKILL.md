@@ -21,19 +21,27 @@ Example:
 
 Do not overwrite or modify the source document.
 
-## Document reading
+## PDF document reading
 
-Read and analyze the complete source document before writing the JSON file.
+For PDF documents, use the MCP PDF Reader tools whenever they are available.
 
-For PDF documents:
+Preferred tool workflow:
 
-1. Prefer an available PDF-reading tool instead of manually parsing the PDF binary.
-2. Use embedded/native text when it is available and usable.
-3. If pages cannot be reliably read as text, use the PDF tool's image-rendering capability and inspect the rendered pages.
-4. Inspect every relevant page.
-5. Do not assume an unreadable or encrypted-looking PDF cannot be processed until the available PDF-reading tool has actually attempted to read it.
+1. Use `read_pdf` / `Read Pdf` from the PDF Reader MCP extension.
+2. This tool uses MuPDF and automatically attempts native text extraction.
+3. If native text is not usable, allow the PDF Reader MCP to render the document to images.
+4. Inspect returned page images using the available image-reading/vision capability.
+5. Use `pdf_info` / `Pdf Info` only when document metadata or PDF information is actually needed.
 
-Do not install additional PDF or OCR software when an appropriate document-reading tool is already available.
+Do NOT use the generic `Pdf Tool` with `extract_text` when the PDF Reader MCP is available.
+
+Do NOT manually parse PDF binary data.
+
+Do NOT dump raw PDF objects, encoded streams, compressed content, or full binary representations into the conversation context.
+
+Do NOT install additional PDF or OCR software when the PDF Reader MCP is available.
+
+If the PDF Reader MCP is not currently enabled but is available as an extension, enable it before processing the PDF.
 
 ## JSON structure
 
