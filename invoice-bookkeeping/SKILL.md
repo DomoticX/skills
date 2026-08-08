@@ -1,13 +1,43 @@
-Analyze the given document and write the extracted data to a JSON file.
+---
+name: invoice-bookkeeping
+description: Extract bookkeeping data from invoices, receipts, bills, and purchase documents into a strict JSON file saved next to the source document. Use this skill when the user asks to analyze, extract, process, convert, or bookkeep an invoice or receipt.
+---
+
+# Invoice Bookkeeping Extraction
+
+Analyze the specified invoice, receipt, bill, or purchase document and extract its bookkeeping data.
+
+## Output file
+
+Write exactly one JSON file.
 
 Save the JSON file in the same directory as the source document.
-Use the same base filename as the source document, but replace the original
-extension with ".json".
+
+Use the same base filename as the source document and replace only the original extension with `.json`.
 
 Example:
-"invoice-123.pdf" becomes "invoice-123.json"
 
-Use exactly the following JSON structure:
+`invoice-123.pdf` → `invoice-123.json`
+
+Do not overwrite or modify the source document.
+
+## Document reading
+
+Read and analyze the complete source document before writing the JSON file.
+
+For PDF documents:
+
+1. Prefer an available PDF-reading tool instead of manually parsing the PDF binary.
+2. Use embedded/native text when it is available and usable.
+3. If pages cannot be reliably read as text, use the PDF tool's image-rendering capability and inspect the rendered pages.
+4. Inspect every relevant page.
+5. Do not assume an unreadable or encrypted-looking PDF cannot be processed until the available PDF-reading tool has actually attempted to read it.
+
+Do not install additional PDF or OCR software when an appropriate document-reading tool is already available.
+
+## JSON structure
+
+Use exactly this structure and these field names:
 
 {
   "ShopName": "",
@@ -26,36 +56,187 @@ Use exactly the following JSON structure:
     }
   ]
 }
-Replace all example values with values extracted from the document.
 
-Requirements:
+Do not add, remove, rename, or reorder fields unless the user explicitly requests a different schema.
 
-- Preserve all identifiable product lines.
-- Check the complete document explicitly for VAT or tax information.
-- Use dates in YYYY-MM-DD format.
-- Use a period as the decimal separator.
-- Format all monetary amounts with exactly two decimal places.
-- Do not include currency symbols in amount fields.
-- Confidence values must range from 0.00 to 1.00.
-- Use a separate confidence value for every item line.
+Replace all placeholder values with values extracted from the actual document.
+
+## Extraction rules
+
+- Preserve all identifiable product or service lines.
+- Inspect the complete document explicitly for VAT, BTW, tax, sales tax, tax rates, tax totals, inclusive/exclusive tax statements, or equivalent tax information.
+- Do not infer VAT merely from the total amount.
 - Do not invent missing information.
-- Write valid, directly parseable JSON.
-- Do not include Markdown, comments, code fences, or explanatory text in the JSON file.
-- After writing the file, read it back and validate that it contains valid JSON.
-- If validation fails, correct the file before finishing.
+- Do not calculate a missing value unless it can be unambiguously derived from values explicitly present in the document.
+- If a field cannot be determined reliably from the document, use an empty string `""`.
+- Preserve meaningful descriptions as they appear in the document, while removing obvious layout artifacts.
+- Do not copy placeholder values from the JSON example.
 
-Do not copy placeholder values from the example.
+## Formatting rules
 
-Estimate each confidence value independently based on the actual document.
+### Dates
 
-Confidence guidance:
-- 0.99: clearly visible and unambiguous
-- 0.90-0.98: highly likely, minor uncertainty
-- 0.70-0.89: readable but somewhat uncertain
-- 0.40-0.69: weak or partially obscured
-- below 0.40: highly uncertain
+Use:
 
-Do not assign the same confidence score to every field or every line unless they genuinely have the same level of certainty.
+`YYYY-MM-DD`
 
-After successfully writing and validating the file, respond only with:
-Saved: <full path to JSON file>
+Example:
+
+`2026-07-01`
+
+### Monetary amounts
+
+- Use a period as the decimal separator.
+- Use exactly two decimal places.
+- Do not include currency symbols.
+- Do not include thousands separators.
+
+Examples:
+
+`12.10`
+
+`1234.50`
+
+### Quantities
+
+Preserve the quantity shown in the document.
+
+Do not invent a quantity when none is identifiable.
+
+### References
+
+Use the invoice number, receipt number, transaction reference, order reference, or equivalent primary document reference when identifiable.
+
+Do not substitute unrelated numbers such as postal codes, customer numbers, telephone numbers, or bank account numbers.
+
+## VAT rules
+
+VATAmount must represent the identifiable VAT/tax amount for the complete document.
+
+Explicitly inspect the document for terms or values such as:
+
+- VAT
+- BTW
+- Tax
+- Sales tax
+- Incl.
+- Excl.
+- VAT amount
+- BTW bedrag
+- tax amount
+- tax rate
+- 21%
+- 9%
+- 0%
+
+If VAT/tax information is present, extract the actual identifiable VAT/tax amount.
+
+If a tax rate is shown but the VAT amount itself is not stated, only calculate VATAmount when the calculation is unambiguous from explicitly stated taxable amounts and tax treatment.
+
+Otherwise use:
+
+`""`
+
+Never use `0.00` merely to represent unknown or missing VAT.
+
+Use `0.00` only when the document explicitly establishes that the applicable VAT/tax amount is zero.
+
+## Confidence scoring
+
+Confidence values must range from `0.00` through `1.00`.
+
+Estimate confidence independently from the actual evidence in the document.
+
+Guidance:
+
+- `0.99` — clearly visible/readable and unambiguous
+- `0.90`–`0.98` — highly likely with only minor uncertainty
+- `0.70`–`0.89` — readable but somewhat uncertain
+- `0.40`–`0.69` — weak, incomplete, or partially obscured
+- below `0.40` — highly uncertain
+
+Do not automatically assign `0.95`, `0.99`, or any other fixed value.
+
+Do not assign identical confidence scores to every line unless the evidence genuinely supports the same confidence for each line.
+
+### ItemConfidence
+
+Estimate `ItemConfidence` independently for every item line.
+
+Base it on the certainty of the extracted description, quantity, unit price, and line total for that specific line.
+
+### Confidence
+
+`Confidence` represents the overall confidence in the extracted document-level result.
+
+Consider at least:
+
+- ShopName
+- Date
+- Reference
+- TotalAmount
+- VATAmount
+- completeness of Lines
+
+Do not calculate the overall Confidence as a simple arithmetic average unless there is a specific reason to do so.
+
+## Line fields
+
+For each identifiable item or service line:
+
+### ItemDescription
+
+Use the identifiable product or service description.
+
+### ItemQuantity
+
+Use the explicitly identifiable quantity.
+
+If no quantity can be identified, use:
+
+`""`
+
+### ItemPriceSKU
+
+Use the identifiable unit price.
+
+If a separate unit price is not identifiable, use:
+
+`""`
+
+### ItemPriceTotalAmount
+
+Use the identifiable total amount for that specific line.
+
+If no separate line total is identifiable, use:
+
+`""`
+
+### ItemConfidence
+
+Estimate confidence for that line independently.
+
+## Validation
+
+Before finishing:
+
+1. Write the JSON file.
+2. Read the saved JSON file back from disk.
+3. Parse it as JSON.
+4. Confirm that it contains exactly the required top-level fields.
+5. Confirm that `Lines` is an array.
+6. Confirm that every line contains exactly the required line fields.
+7. Confirm all known monetary values use exactly two decimal places.
+8. Confirm the date uses `YYYY-MM-DD` when a date was identified.
+9. Confirm confidence values are between `0.00` and `1.00`.
+10. Confirm no Markdown, comments, code fences, or explanatory prose were written into the JSON file.
+
+If validation fails, correct the JSON file and validate it again before finishing.
+
+## Final response
+
+After the JSON file has been successfully written and validated, respond only with:
+
+`Saved: <full path to JSON file>`
+
+Do not include any other explanation.
